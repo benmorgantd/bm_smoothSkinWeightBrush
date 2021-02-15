@@ -37,5 +37,9 @@ Tested in Maya 2020 (uses OpenMaya API 2.0), so this *might* work in 2016+ but i
 
 ### Plug-in Documentation
 #### High Level
-The plug-in, at a basic level, is designed to set the weight of a single vertex to the average weight of its neighbors. 
+* The plug-in command, at a basic level, is designed to set the weight of a single vertex to the average weight of its neighbors. 
+* The command runs 2 getWeights calls: one for a single vertex and another for its neighbors
+* The command runs 1 setWeights call on a single vertex
+* The command's args include: shapeName, skinClusterName, vertexId, strength
+
 
