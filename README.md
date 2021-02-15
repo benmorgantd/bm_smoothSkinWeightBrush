@@ -1,4 +1,5 @@
 Brush Demo (2x speed)
+
 ![Brush Demo](https://i.imgur.com/j0fWZXY.gif)
 
 # bm_smoothSkinWeightBrush
