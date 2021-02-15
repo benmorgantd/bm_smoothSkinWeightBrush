@@ -1,4 +1,7 @@
 # bm_smoothSkinWeightBrush
+
+![Brush Demo](https://i.imgur.com/OVsZsVB.mp4)
+
 A skinning context for Autodesk Maya whose brush smooths all influences at once. Similar to Brave Rabbit's smooth skin weight brush, and very similar to the ancient _tfSmoothSkinWeight_ brush from turbosquid. 
 
 The goal for this project was to figure out how to get a custom paint tool working and to document that online for others.
