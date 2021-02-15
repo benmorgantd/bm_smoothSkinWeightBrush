@@ -17,4 +17,5 @@ Tested in Maya 2020 (uses OpenMaya API 2.0)
 
 #### Python
   *import maya.mel*
+  
   *maya.mel.eval("source bm_smoothSkinWeightBrush;")*
