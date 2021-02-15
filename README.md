@@ -28,3 +28,12 @@ Tested in Maya 2020 (uses OpenMaya API 2.0), so this *might* work in 2016+ but i
   *import maya.mel*
   
   *maya.mel.eval("source bm_smoothSkinWeightBrush;")*
+
+
+
+## Technical Documentation
+
+### Plug-in Documentation
+#### High Level
+The plug-in, at a basic level, is designed to set the weight of a single vertex to the average weight of its neighbors. 
+
