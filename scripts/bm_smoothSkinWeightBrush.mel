@@ -1,0 +1,71 @@
+global string $bm_smoothWeightShapeName;
+global string $bm_smoothWeightSkinClusterName;
+
+global proc bm_SmoothSkinBrushStartStroke(string $shortName)
+{
+    // we don't need to do anything, but this function does need to exist for the brush to init correctly.
+}
+
+// This runs just once when the brush is initialized.
+global proc bm_smoothBrushGetSurfaceInformation()
+{
+    global string $bm_smoothWeightShapeName;
+    global string $bm_smoothWeightSkinClusterName;
+    string $selection[];
+    string $transformShapes[];
+    string $meshShape;
+
+    $selection = `ls -selection -long -objectsOnly`;
+    $transformShapes = `listRelatives -shapes -noIntermediate -fullPath $selection[0]`;
+
+    // take the first shape
+    $meshShape = $transformShapes[0];
+
+    // make sure the shape type is a polygonal mesh
+    if (`objectType $meshShape` == "mesh")
+    {
+        $bm_smoothWeightShapeName = $meshShape;
+    }
+
+    $bm_smoothWeightSkinClusterName = `findRelatedSkinCluster $meshShape`;
+}
+
+// The slot, index, and value args are from the overridden Artisan tool fn
+global proc bm_smoothSkinWeightsBrushStroke(int $slot, int $vertexIndex, float $brushWeight)
+{
+    // Declaring these variables signals we want to use them within this function
+    global string $bm_smoothWeightShapeName;
+    global string $bm_smoothWeightSkinClusterName;
+
+    // Call the undoable command for each vertex. Maya automatically makes this undoable per-stroke.
+    bmSmoothSkinWeightsBrushCmd $vertexIndex $brushWeight $bm_smoothWeightShapeName $bm_smoothWeightSkinClusterName;
+}
+
+// This function sets up the artUserPaintCtx context with the options we want
+global proc bm_smoothSkinWeightsBrushSetup(string $context)
+{
+    bm_smoothBrushGetSurfaceInformation();
+
+    artUserPaintCtx -edit -initializeCmd "bm_SmoothSkinBrushStartStroke"
+    -setValueCommand "bm_smoothSkinWeightsBrushStroke" -finalizeCmd "" -getValueCommand ""
+    -getSurfaceCommand "" -surfaceConformedBrushVertices 1 -showactive 1 -getArrayAttrCommand ""
+    -interactiveUpdate 1 -toolCleanupCmd "" $context;
+
+}
+
+global proc bm_smoothSkinBrushInit()
+{
+    global string $bm_smoothWeightSkinClusterName;
+    ScriptPaintTool;
+    artUserPaintCtx -edit -toolSetupCmd "bm_smoothSkinWeightsBrushSetup" `currentCtx`;
+
+    if ($bm_smoothWeightSkinClusterName == "")
+    {
+        warning "Mesh has no skin cluster.";
+        // access the global select super context
+        global string $gSelect;
+        setToolTo $gSelect;
+    }
+}
+
+bm_smoothSkinBrushInit();
