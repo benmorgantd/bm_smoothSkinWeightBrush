@@ -13,7 +13,7 @@ Tested in Maya 2020 (uses OpenMaya API 2.0)
 ## Running the tool
 #### Mel
   *source bm_smoothSkinWeightBrush;*
-*
+
 
 #### Python
   *import maya.mel*
