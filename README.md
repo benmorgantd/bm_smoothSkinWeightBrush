@@ -12,10 +12,12 @@ Tested in Maya 2020 (uses OpenMaya API 2.0)
 
 ## Running the tool
 #### Mel
+**
   source bm_smoothSkinWeightBrush;
-
-or 
+**
 
 #### Python
+**
   import maya.mel
   maya.mel.eval("source bm_smoothSkinWeightBrush;")
+**
