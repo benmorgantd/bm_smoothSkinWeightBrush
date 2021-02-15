@@ -3,6 +3,7 @@
 // these two global string variables will store the name and skin cluster of the active mesh
 global string $bm_smoothWeightShapeName;
 global string $bm_smoothWeightSkinClusterName;
+global int $hasSkinCluster = 1;
 
 // we don't need to do anything, but this function seems to need to exist for the brush to init correctly.
 global proc bm_SmoothSkinBrushStartStroke(string $shapeShortName){}
@@ -10,6 +11,7 @@ global proc bm_SmoothSkinBrushStartStroke(string $shapeShortName){}
 // This runs just once when the brush is initialized.
 global proc bm_smoothBrushGetSurfaceInformation()
 {
+    global int $hasSkinCluster;
     global string $bm_smoothWeightShapeName;
     global string $bm_smoothWeightSkinClusterName;
     string $selection[];
@@ -22,8 +24,10 @@ global proc bm_smoothBrushGetSurfaceInformation()
     $selectionObjectsOnly = `ls -selection -objectsOnly`;
 
     if (`objectType $selectionObjectsOnly[0]` == "mesh")
+    {
         // if we have a vertex component or a shape selected, we don't need to get the shape relatives
         $meshShape = $selectionObjectsOnly[0];
+    }
     else
     {
         $transformShapes = `listRelatives -shapes -noIntermediate -fullPath $selectionObjectsOnly[0]`;
@@ -34,8 +38,10 @@ global proc bm_smoothBrushGetSurfaceInformation()
     // make sure the shape type is a polygonal mesh
     if (`objectType $meshShape` == "mesh")
         $bm_smoothWeightShapeName = $meshShape;
+        $bm_smoothWeightSkinClusterName = `findRelatedSkinCluster $meshShape`;
 
-    $bm_smoothWeightSkinClusterName = `findRelatedSkinCluster $meshShape`;
+    if ($bm_smoothWeightSkinClusterName == "")
+        $hasSkinCluster = 0;
 
 }
 
@@ -47,8 +53,13 @@ global proc bm_smoothSkinWeightsBrushStroke(int $slot, int $vertexIndex, float $
     global string $bm_smoothWeightSkinClusterName;
 
     if ($brushValue >= 0.0 && $brushValue <= 1.0)
-        // Call the undoable command for each vertex. Maya automatically makes this undoable per-stroke.
-        bmSmoothSkinWeightsBrushCmd $vertexIndex $brushValue $bm_smoothWeightShapeName $bm_smoothWeightSkinClusterName;
+        if ($bm_smoothWeightSkinClusterName != "" && $bm_smoothWeightShapeName != "NONE")
+        {
+            // Calls the command for each vertex under the brush. Maya automatically makes this undoable per-stroke.
+            bmSmoothSkinWeightsBrushCmd $vertexIndex $brushValue $bm_smoothWeightShapeName $bm_smoothWeightSkinClusterName;
+        }
+        else
+            warning "Mesh has no skin cluster.";
     else
         warning "Could not smooth weight as the value was not between 0 and 1";
 }
@@ -56,29 +67,38 @@ global proc bm_smoothSkinWeightsBrushStroke(int $slot, int $vertexIndex, float $
 // This function sets up the artUserPaintCtx context with the options we want
 global proc bm_smoothSkinWeightsBrushSetup(string $context)
 {
-    bm_smoothBrushGetSurfaceInformation();
+    global string $gSelect;
+    global string $bm_smoothWeightSkinClusterName;
 
     artUserPaintCtx -edit -initializeCmd "bm_SmoothSkinBrushStartStroke"
     -setValueCommand "bm_smoothSkinWeightsBrushStroke" -finalizeCmd "" -getValueCommand ""
     -getSurfaceCommand "" -surfaceConformedBrushVertices 1 -showactive 1 -getArrayAttrCommand ""
     -interactiveUpdate 1 -toolCleanupCmd "" $context;
-
 }
 
 // This function switches us into the paint scripts tool context and runs the tool setup
 global proc bm_smoothSkinBrushInit()
 {
+    global int $hasSkinCluster;
+    global string $bm_smoothWeightShapeName;
     global string $bm_smoothWeightSkinClusterName;
-    ScriptPaintTool;
-    artUserPaintCtx -edit -toolSetupCmd "bm_smoothSkinWeightsBrushSetup" `currentCtx`;
+    string $selection[];
+    $selection = `ls -selection -objectsOnly`;
 
-    if ($bm_smoothWeightSkinClusterName == "")
+    if (size($selection) > 0)
     {
-        warning -showLineNumber 0 "Mesh has no skin cluster, bm_smoothWeightsBrush cannot init.";
-        // access the global select super context
-        global string $gSelect;
-        setToolTo $gSelect;
+        bm_smoothBrushGetSurfaceInformation();
+
+        if ($hasSkinCluster)
+        {
+            ScriptPaintTool;
+            artUserPaintCtx -edit -toolSetupCmd "bm_smoothSkinWeightsBrushSetup" `currentCtx`;
+        }
+        else
+            warning "Did not enter paint context since the selected mesh has no skin cluster.";
     }
+    else
+        warning "Please make a selection before using this tool.";
 }
 
 // sourcing this file will automatically enter you into the context
