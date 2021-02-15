@@ -4,6 +4,7 @@
 global string $bm_smoothWeightShapeName;
 global string $bm_smoothWeightSkinClusterName;
 global int $hasSkinCluster = 1;
+global string $selectionObjectsOnly[];
 
 // we don't need to do anything, but this function seems to need to exist for the brush to init correctly.
 global proc bm_SmoothSkinBrushStartStroke(string $shapeShortName){}
@@ -14,35 +15,58 @@ global proc bm_smoothBrushGetSurfaceInformation()
     global int $hasSkinCluster;
     global string $bm_smoothWeightShapeName;
     global string $bm_smoothWeightSkinClusterName;
+    global string $selectionObjectsOnly[];
     string $selection[];
-    string $selectionObjectsOnly[];
     string $transformShapes[];
     string $meshShape;
 
 
     $selection = `ls -selection -long`;
     $selectionObjectsOnly = `ls -selection -objectsOnly`;
+    string $objectType = `objectType $selectionObjectsOnly[0]`;
 
-    if (`objectType $selectionObjectsOnly[0]` == "mesh")
+    if ($objectType == "mesh" || $objectType == "transform")
     {
-        // if we have a vertex component or a shape selected, we don't need to get the shape relatives
-        $meshShape = $selectionObjectsOnly[0];
+        if (`objectType $selectionObjectsOnly[0]` == "mesh")
+        {
+            // if we have a vertex component or a shape selected, we don't need to get the shape relatives
+            $meshShape = $selectionObjectsOnly[0];
+            $bm_smoothWeightShapeName = $meshShape;
+        }
+        else if (`objectType $selectionObjectsOnly` == "transform")
+        {
+            $transformShapes = `listRelatives -shapes -noIntermediate -fullPath $selectionObjectsOnly[0]`;
+            // take the first shape. Transforms with multiple shapes are not supported
+            if (size($transformShapes))
+                $meshShape = $transformShapes[0];
+                // make sure the shape type is a polygonal mesh
+                if ($meshShape != "" && `objectType $meshShape` == "mesh")
+                {
+                    $bm_smoothWeightShapeName = $meshShape;
+                }
+            else
+            {
+                // the transform has no shape node
+                $meshShape = "";
+                warning "The given transform has no shape node.";
+            }
+        }
+
+        if ($meshShape != "")
+        {
+            $bm_smoothWeightSkinClusterName = `findRelatedSkinCluster $meshShape`;
+            if ($bm_smoothWeightSkinClusterName == "")
+                $hasSkinCluster = 0;
+        }
+        else
+            $hasSkinCluster = 0;
+
     }
     else
     {
-        $transformShapes = `listRelatives -shapes -noIntermediate -fullPath $selectionObjectsOnly[0]`;
-        // take the first shape. Transforms with multiple shapes are not supported
-        $meshShape = $transformShapes[0];
-    }
-
-    // make sure the shape type is a polygonal mesh
-    if (`objectType $meshShape` == "mesh")
-        $bm_smoothWeightShapeName = $meshShape;
-        $bm_smoothWeightSkinClusterName = `findRelatedSkinCluster $meshShape`;
-
-    if ($bm_smoothWeightSkinClusterName == "")
+        warning "The selected object's type is not supported for this tool.";
         $hasSkinCluster = 0;
-
+    }
 }
 
 // The slot, index, and value args are from the overridden Artisan tool fn and get passed in automatically.
@@ -53,13 +77,8 @@ global proc bm_smoothSkinWeightsBrushStroke(int $slot, int $vertexIndex, float $
     global string $bm_smoothWeightSkinClusterName;
 
     if ($brushValue >= 0.0 && $brushValue <= 1.0)
-        if ($bm_smoothWeightSkinClusterName != "" && $bm_smoothWeightShapeName != "NONE")
-        {
-            // Calls the command for each vertex under the brush. Maya automatically makes this undoable per-stroke.
-            bmSmoothSkinWeightsBrushCmd $vertexIndex $brushValue $bm_smoothWeightShapeName $bm_smoothWeightSkinClusterName;
-        }
-        else
-            warning "Mesh has no skin cluster.";
+        // Calls the command for each vertex under the brush. Maya automatically makes this undoable per-stroke.
+        bmSmoothSkinWeightsBrushCmd $vertexIndex $brushValue $bm_smoothWeightShapeName $bm_smoothWeightSkinClusterName;
     else
         warning "Could not smooth weight as the value was not between 0 and 1";
 }
@@ -82,11 +101,13 @@ global proc bm_smoothSkinBrushInit()
     global int $hasSkinCluster;
     global string $bm_smoothWeightShapeName;
     global string $bm_smoothWeightSkinClusterName;
-    string $selection[];
-    $selection = `ls -selection -objectsOnly`;
+    // It's easier to just not enter the context if there is nothing selected.
+    global string $selectionObjectsOnly[];
+    $selectionObjectsOnly = `ls -selection -objectsOnly`;
 
-    if (size($selection) > 0)
+    if (size($selectionObjectsOnly) > 0)
     {
+        // We can also gather and verify our surface information before entering the context
         bm_smoothBrushGetSurfaceInformation();
 
         if ($hasSkinCluster)
@@ -95,7 +116,7 @@ global proc bm_smoothSkinBrushInit()
             artUserPaintCtx -edit -toolSetupCmd "bm_smoothSkinWeightsBrushSetup" `currentCtx`;
         }
         else
-            warning "Did not enter paint context since the selected mesh has no skin cluster.";
+            warning "Did not enter paint context since the selected object has no skin cluster.";
     }
     else
         warning "Please make a selection before using this tool.";
