@@ -1,4 +1,4 @@
-![Brush Demo](https://i.imgur.com/j0fWZXY.gif)
+                                                              ![Brush Demo](https://i.imgur.com/j0fWZXY.gif)
 
 # bm_smoothSkinWeightBrush
 
