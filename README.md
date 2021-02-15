@@ -8,7 +8,7 @@ A skinning context for Autodesk Maya whose brush smooths all influences at once.
 
 The goal for this project was to figure out how to get a custom paint tool working and to document that online for others.
 
-The plug-in for this brush is written in Python, so the brush isn't great at very high mesh densities. 
+The plug-in for this brush is written in Python, so the brush isn't great at very high vertex and influence densities. I use this mainly on game-resolution meshes.
 
 Tested in Maya 2020 (uses OpenMaya API 2.0), so this *might* work in 2016+ but it hasn't been tested enough to be sure. 
 
