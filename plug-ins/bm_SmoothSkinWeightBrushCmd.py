@@ -10,13 +10,21 @@ def maya_useNewAPI():
 
 class bmSmoothSkinWeightsBrushCmd(om.MPxCommand):
     COMMAND_NAME = 'bmSmoothSkinWeightsBrushCmd'
+    # stores an array of tuples that has the data necessary to undo setting weights
     undoQueue = []
-    dagPath = om.MDagPath()
-    component = om.MObject()
-    neighborComponents = om.MObject()
+    # the dag path of the mesh's shape node
+    shapeDag = om.MDagPath()
+    # the mobject for our mesh's skin cluster
     skinClusterMObject = om.MObject()
+    # the mobject that points to the given vertex
+    component = om.MObject()
+    # the mobject that points to the given vertex's neighbors
+    neighborComponents = om.MObject()
+    # the given vertex id to smooth
     vertexId = None
+    # the strength at which to smooth, where 0 does nothing.
     strength = 1.0
+    # the number of neighbors this vertex has. Needed for the average function.
     numVertexNeighbors = 0
 
     def __init__(self):
@@ -44,53 +52,6 @@ class bmSmoothSkinWeightsBrushCmd(om.MPxCommand):
 
         return _syntax
 
-    @classmethod
-    def getVertexNeighbors(cls, dag, components):
-        itVerts = om.MItMeshVertex(dag, components)
-        neighboringVerts = set()
-        numNeighbors = 0
-
-        while not itVerts.isDone():
-            neighbors = itVerts.getConnectedVertices()
-            numNeighbors = len(neighbors)
-            neighboringVerts.update(neighbors)
-            break
-
-        sel = om.MSelectionList()
-        for vertId in neighboringVerts:
-            sel.add(dag.fullPathName() + '.vtx[{0}]'.format(vertId))
-
-        dag, neighboringVertices = sel.getComponent(0)
-
-        return neighboringVertices, numNeighbors
-
-    @classmethod
-    def getVertexComponentFromId(cls, vertexId, meshName):
-        sel = om.MSelectionList()
-        sel.add('{0}.vtx[{1}]'.format(meshName, vertexId))
-        dag, component = sel.getComponent(0)
-
-        return component
-
-    @classmethod
-    def findUpstreamNodeOfType(cls, sourceMObject, nodeType):
-        itDG = om.MItDependencyGraph(sourceMObject)
-        itDG.resetTo(sourceMObject, nodeType, om.MItDependencyGraph.kUpstream, om.MItDependencyGraph.kDepthFirst,
-                     om.MItDependencyGraph.kNodeLevel)
-
-        if itDG.isDone():
-            # No nodes upstream of that plug of the given type
-            return None
-
-        skinClusterMObject = None
-
-        while not itDG.isDone():
-            # return the first one we come across
-            skinClusterMObject = itDG.currentNode()
-            break
-
-        return skinClusterMObject
-
     def doIt(self, args):
         # gather the values from args
         argParser = om.MArgParser(self.syntax(), args)
@@ -103,52 +64,67 @@ class bmSmoothSkinWeightsBrushCmd(om.MPxCommand):
         sel = om.MSelectionList()
         sel.add(meshName)
         sel.add(skinClusterName)
-        self.dagPath = sel.getDagPath(0)
+        self.shapeDag = sel.getDagPath(0)
         self.skinClusterMObject = sel.getDependNode(1)
 
-        # get the dag path and component from the vertex id
+        # create a single index component mfn and assign our given vertex id to it
+        self.component = om.MFnSingleIndexedComponent().create(om.MFn.kMeshVertComponent)
+        om.MFnSingleIndexedComponent(self.component).addElement(self.vertexId)
 
-        self.component = self.getVertexComponentFromId(self.vertexId, meshName)
+        # get the nighbors of this vertex
+        itVert = om.MItMeshVertex(self.shapeDag, self.component)
+        neighborVertList = itVert.getConnectedVertices()
+        # TODO: with this iterator, we could also query if this vertex is a border vertex.
+        # We could skip the redo function altogether if we wanted to pin border vertices
 
-        self.neighborComponents, self.numVertexNeighbors = self.getVertexNeighbors(self.dagPath, self.component)
+        self.numVertexNeighbors = len(neighborVertList)
+
+        # Create a single indexed component mfn and assign the neighbor component array to it.
+        self.neighborComponents = om.MFnSingleIndexedComponent().create(om.MFn.kMeshVertComponent)
+        om.MFnSingleIndexedComponent(self.neighborComponents).addElements(neighborVertList)
 
         self.redoIt()
 
     def redoIt(self):
-        # get the skin cluster MObject by going up the history
-
         fnSkinCluster = omAnim.MFnSkinCluster(self.skinClusterMObject)
 
-        oldVertexWeight, numInfluences = fnSkinCluster.getWeights(self.dagPath, self.component)
-        neighborVertexWeights, numInfluences = fnSkinCluster.getWeights(self.dagPath, self.neighborComponents)
+        # get the weights for our single vertex plus its neighbors
+        oldVertexWeight, numInfluences = fnSkinCluster.getWeights(self.shapeDag, self.component)
+        neighborVertexWeights, numInfluences = fnSkinCluster.getWeights(self.shapeDag, self.neighborComponents)
+        neighborVertexWeightLength = self.numVertexNeighbors * numInfluences
 
         influenceIndices = om.MIntArray()
         newWeights = om.MDoubleArray()
 
+        # set the vertex weight to the average of its neighbor parts
         for i in xrange(numInfluences):
-            # set the vertex weight to the average of its neighbor parts
+            # taking advantage of this loop to create our influence indices array
             influenceIndices.append(i)
+            # weights start at 0 so that we can add weight values to it
             newWeights.append(0.0)
-            for j in xrange(i, len(neighborVertexWeights), numInfluences):
+            for j in xrange(i, neighborVertexWeightLength, numInfluences):
                 # add to a rolling average. This will be normalized by default.
                 # NOTE bmorgan: This formula comes from tf_smoothSkinWeight
                 newWeights[i] += (((neighborVertexWeights[j] / self.numVertexNeighbors) * self.strength) +
                                   ((oldVertexWeight[i] / self.numVertexNeighbors) * (1 - self.strength)))
 
-        fnSkinCluster.setWeights(self.dagPath, self.component, influenceIndices, newWeights)
+        # set the skin cluster weight for just that single component
+        fnSkinCluster.setWeights(self.shapeDag, self.component, influenceIndices, newWeights)
 
-        self.undoQueue.append((self.skinClusterMObject, oldVertexWeight, self.dagPath, influenceIndices, self.component))
+        # add the previous weight value to our undo queue
+        self.undoQueue.append((self.skinClusterMObject, oldVertexWeight, self.shapeDag, influenceIndices, self.component))
 
     def undoIt(self):
         if self.undoQueue:
             fnSkinCluster = omAnim.MFnSkinCluster(self.undoQueue[-1][0])
-            oldWeights = self.undoQueue[-1][1]
-            meshDagPath = self.undoQueue[-1][2]
+            oldWeight = self.undoQueue[-1][1]
+            shapeDag = self.undoQueue[-1][2]
             influenceIndices = self.undoQueue[-1][3]
             component = self.undoQueue[-1][4]
-            # when undoing, we have to set weights on every component
-            fnSkinCluster.setWeights(meshDagPath, component, influenceIndices, oldWeights)
+            # when undoing, we're also only setting the weight on that single vertex
+            fnSkinCluster.setWeights(shapeDag, component, influenceIndices, oldWeight)
 
+            # after we've set weights, remove that data from the undo queue
             self.undoQueue.pop(-1)
 
 
