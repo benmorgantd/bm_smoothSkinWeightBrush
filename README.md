@@ -4,7 +4,7 @@ The plug-in for this brush is written in Python, so the brush isn't great at ver
 
 The goal for this project was more to figure out how to get a custom paint tool working, and to document that for others.
 
-**Because it runs off of a command, the action of this brush is undoable**
+### Because it runs off of a command, the action of this brush is undoable
 
 Tested in Maya 2020 (uses OpenMaya API 2.0), so this *might* work in 2016+ but it hasn't been tested enough to be sure. 
 
