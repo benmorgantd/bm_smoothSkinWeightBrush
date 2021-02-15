@@ -41,7 +41,8 @@ Tested in Maya 2020 (uses OpenMaya API 2.0), so this *might* work in 2016+ but i
 * Adjusting the brush's opacity and profile adjusts the intensity of the smooth effect.
 * You can undo a stroke with ctrl+z
 * The actual brush command you use (replace, add, scale, etc) has no effect
-
+* The resulting weights from the tool will be normalized 
+* The resulting weights from the tool will likely by > 4 influences per vertex if that matters for you
 
 ## Technical Documentation
 
