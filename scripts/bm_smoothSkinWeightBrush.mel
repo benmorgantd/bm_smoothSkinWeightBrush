@@ -20,9 +20,7 @@ global proc bm_smoothBrushGetSurfaceInformation()
     string $transformShapes[];
     string $meshShape;
 
-
     $selection = `ls -selection -long`;
-    $selectionObjectsOnly = `ls -selection -objectsOnly`;
     string $objectType = `objectType $selectionObjectsOnly[0]`;
 
     if ($objectType == "mesh" || $objectType == "transform")
