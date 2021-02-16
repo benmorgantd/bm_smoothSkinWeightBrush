@@ -31,7 +31,7 @@ Tested in Maya 2020 (uses OpenMaya API 2.0), so this *might* work in 2016+ but i
 
 
 #### Python
-`import maya.mel`
+`import maya.mel
 maya.mel.eval("source bm_smoothSkinWeightBrush;")`
 
 
