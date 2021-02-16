@@ -32,7 +32,7 @@ Tested in Maya 2020 (uses OpenMaya API 2.0), so this *might* work in 2016+ but i
 
 ## Using the brush
 0. I usually find it useful to put my rig in am extreme pose while smoothing weights.
-1. Select a the transform, shape, or vertex of a skinned mesh
+1. Select the transform, shape, or vertex of a skinned mesh
 2. Paint the vertices you want to smooth
 3. Press q to exit the tool context, or any other way you'd normally exit the Paint Skin Weights tool
 
