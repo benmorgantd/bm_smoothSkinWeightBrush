@@ -19,15 +19,20 @@ Tested in Maya 2020 (uses OpenMaya API 2.0), so this *might* work in 2016+ but i
 4. Open Maya
 5. Open the Plug-in Manager and load bm_SmoothSkinWeightBrushCmd. Also set it to AutoLoad so you don't have to do this each time. 
 
+## How to Install (Slightly Less Easy Mode)
+1. Download the zip for this repository
+2. In your Maya installation's Maya.env file, append the path to ...bm_smoothSkinWeightsBrush/scripts and /plig-ins to the MAYA_SCRIPT_LOC and MAYA_PLUG_IN_PATH variables respectively.
+* See the [Autodesk Docs on Maya.env](https://knowledge.autodesk.com/support/maya/learn-explore/caas/CloudHelp/cloudhelp/2020/ENU/Maya-EnvVar/files/GUID-8EFB1AC1-ED7D-4099-9EEE-624097872C04-htm.html) for more information
+* This technique allows you to keep this repo in a folder location apart from your normal maya install loc, which can make working with git a little easier. 
+
 ## Running the tool
 #### Mel
-  *source bm_smoothSkinWeightBrush;*
+`source bm_smoothSkinWeightBrush;`
 
 
 #### Python
-  *import maya.mel*
-  
-  *maya.mel.eval("source bm_smoothSkinWeightBrush;")*
+`import maya.mel`
+maya.mel.eval("source bm_smoothSkinWeightBrush;")`
 
 
 ## Using the brush
