@@ -59,7 +59,7 @@ maya.mel.eval("source bm_smoothSkinWeightBrush;")
 * The plug-in command, at a basic level, is designed to set the weight of a single vertex to the average weight of its neighbors. 
 * The command runs 2 getWeights calls: one for a single vertex and another for its neighbors
 * The command runs 1 setWeights call on a single vertex
-* The command's args include: `shapeName, skinClusterName, vertexId, strength`
+* The command's args include (in order): `(int) vertexId, (float) strength, (str) shapeName, (str) skinClusterName`
 * The command stores the previous value of the weight in memory so that the action can be undone. 
 
 
