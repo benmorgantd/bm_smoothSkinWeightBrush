@@ -25,11 +25,8 @@ global proc bm_smoothBrushGetSurfaceInformation()
 
     string $objectType = `objectType $selectionObjectsOnly[0]`;
 
-    print $selectionObjectsOnly;
-
     if ($objectType == "mesh")
     {
-        print "here";
         // if we have a vertex component or a shape selected, we don't need to get the shape relatives
         $meshShape = $selectionObjectsOnly[0];
         $bm_smoothWeightShapeName = $meshShape;
