@@ -62,5 +62,4 @@ maya.mel.eval("source bm_smoothSkinWeightBrush;")
 * The command's args include (in order): `(int) vertexId, (float) strength, (str) shapeName, (str) skinClusterName`
 * The command stores the previous value of the weight in memory so that the action can be undone. 
 
-If you found this useful, consider buying me a drink.
-[paypal](https://paypal.me/benmorgan28?locale.x=en_US)
+### If you found this useful, consider buying me a drink via [paypal](https://paypal.me/benmorgan28?locale.x=en_US)
