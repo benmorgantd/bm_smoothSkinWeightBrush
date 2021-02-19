@@ -4,7 +4,8 @@
 global string $bm_smoothWeightShapeName;
 global string $bm_smoothWeightSkinClusterName;
 global int $hasSkinCluster = 0;
-global string $selectionObjectsOnly[];
+// any transforms or shapes that are in the user's selection
+global string $selectedDagNodes[];
 
 // we don't need to do anything, but this function seems to need to exist for the brush to init correctly.
 global proc bm_SmoothSkinBrushStartStroke(string $shapeShortName)
@@ -12,25 +13,31 @@ global proc bm_SmoothSkinBrushStartStroke(string $shapeShortName)
     // pass
 }
 
-// This runs just once when the brush is initialized.
+// This runs just once when the brush is initialized. It sets the global variables that track what shape node you're
+// painting, as well as the name of the skin cluster that drives that mesh.
 global proc bm_smoothBrushGetSurfaceInformation()
 {
+    // In mel, you have to declare global variables at the start of any function you plan to use/set them in.
     global int $hasSkinCluster;
     global string $bm_smoothWeightShapeName;
     global string $bm_smoothWeightSkinClusterName;
-    global string $selectionObjectsOnly[];
-    string $transformShapes[];
-    string $meshShape;
-    string $meshTransform;
+    global string $selectedDagNodes[];
 
-    string $objectType = `objectType $selectionObjectsOnly[0]`;
+    string $transformShapes[];
+    string $meshTransform;
+    string $meshShape;
+
+    // We've already confirmed there is at least one object in the selection before entering this function
+    string $objectType = `objectType $selectedDagNodes[0]`;
 
     if ($objectType == "mesh")
     {
-        // if we have a vertex component or a shape selected, we don't need to get the shape relatives
-        $meshShape = $selectionObjectsOnly[0];
+        // If we have a vertex component or a shape selected, we don't need to get the shape relatives
+        $meshShape = $selectedDagNodes[0];
         $bm_smoothWeightShapeName = $meshShape;
 
+        // Get the transform of that shape node, as findRelatedSkinCluster seems to work more consistently on transforms
+        // in older versions of Maya.
         string $parents[] = `listRelatives -parent -fullPath $meshShape`;
         $meshTransform = $parents[0];
         $bm_smoothWeightSkinClusterName = `findRelatedSkinCluster $meshTransform`;
@@ -41,7 +48,7 @@ global proc bm_smoothBrushGetSurfaceInformation()
     }
     else if ($objectType == "transform")
     {
-        $meshTransform = $selectionObjectsOnly[0];
+        $meshTransform = $selectedDagNodes[0];
         $transformShapes = `listRelatives -shapes -noIntermediate -fullPath $meshTransform`;
         // take the first shape. Transforms with multiple shapes are not supported
         if (size($transformShapes))
@@ -66,7 +73,7 @@ global proc bm_smoothBrushGetSurfaceInformation()
         }
     }
     else
-        warning "The selected object's type is not supported for this tool.";
+        warning "The selected object's type is not supported for this paint tool.";
 }
 
 // The slot, index, and value args are from the overridden Artisan tool fn and get passed in automatically.
@@ -76,6 +83,7 @@ global proc bm_smoothSkinWeightsBrushStroke(int $slot, int $vertexIndex, float $
     global string $bm_smoothWeightShapeName;
     global string $bm_smoothWeightSkinClusterName;
 
+    // Brush values outside of a normalized range can give undesirable results.
     if ($brushValue >= 0.0 && $brushValue <= 1.0)
     {
         // Calls the command for each vertex under the brush. Maya automatically makes this undoable per-stroke.
@@ -100,28 +108,34 @@ global proc bm_smoothSkinWeightsBrushSetup(string $context)
 // This function switches us into the paint scripts tool context and runs the tool setup
 global proc bm_smoothSkinBrushInit()
 {
-    global int $hasSkinCluster;
-    global string $bm_smoothWeightShapeName;
-    global string $bm_smoothWeightSkinClusterName;
-    // It's easier to just not enter the context if there is nothing selected.
-    global string $selectionObjectsOnly[];
-    $selectionObjectsOnly = `ls -selection -long -objectsOnly`;
-
-    if (size($selectionObjectsOnly) > 0)
+    // before we do anything, check to see that the user has the plugin loaded.
+    if (`pluginInfo -query -loaded "bm_SmoothSkinWeightBrushCmd.py"` == 1)
     {
-        // We can also gather and verify our surface information before entering the context
-        bm_smoothBrushGetSurfaceInformation();
+        global int $hasSkinCluster;
+        global string $bm_smoothWeightShapeName;
+        global string $bm_smoothWeightSkinClusterName;
+        // It's easier to just not enter the context if there is nothing selected.
+        global string $selectedDagNodes[];
+        $selectedDagNodes = `ls -selection -long -objectsOnly`;
 
-        if ($hasSkinCluster == 1)
+        if (size($selectedDagNodes) > 0)
         {
-            ScriptPaintTool;
-            artUserPaintCtx -edit -toolSetupCmd "bm_smoothSkinWeightsBrushSetup" `currentCtx`;
+            // We can also gather and verify our surface information before entering the context
+            bm_smoothBrushGetSurfaceInformation();
+
+            if ($hasSkinCluster == 1)
+            {
+                ScriptPaintTool;
+                artUserPaintCtx -edit -toolSetupCmd "bm_smoothSkinWeightsBrushSetup" `currentCtx`;
+            }
+            else
+                error "Did not enter paint context since the selected object has no skin cluster.";
         }
         else
-            warning "Did not enter paint context since the selected object has no skin cluster.";
+            error "Please make a selection before using this tool.";
     }
     else
-        warning "Please make a selection before using this tool.";
+        error "The plug-in command \'bm_SmoothSkinWeightBrushCmd.py\' must be loaded in order to use this tool";
 }
 
 // sourcing this file will automatically enter you into the context
